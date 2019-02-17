@@ -1,0 +1,56 @@
+Parameters:
+  EnvironmentSize:
+    Type: String
+    Default: SMALL
+    AllowedValues:
+     - SMALL
+     - MEDIUM
+     - LARGE
+    Description: Selects Environment Size (Small, Medium or Large)
+  
+  TestString:
+    Type: String
+    Default: test9
+Mappings:
+  RegionMap:
+    eu-central-1:
+      "AMALINUX" : ami-0eaec5838478eb0ba
+  InstanceSize:
+    SMALL:
+      "EC2" : "t2.micro"
+      "DB" : "db.t2.micro"
+    MEDIUM:
+      "EC2" : "t2.small"
+      "DB" : "db.t2.small"
+    LARGE:
+      "EC2" : "t2.medium"
+      "DB" : "db.t2.medium"
+      
+Resources:
+  
+  EC2:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !FindInMap [ RegionMap, !Ref "AWS::Region" , AMALINUX ] # Dynamic Mapping + Pseudo Parameter
+      InstanceType: !FindInMap [ InstanceSize, !Ref EnvironmentSize, EC2 ]
+      KeyName: aws_test
+      UserData:
+        "Fn::Base64":
+          !Sub |
+            #!/bin/bash
+            yum update -y aws-cfn-bootstrap 
+            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2 --configsets wordpress --region ${AWS::Region}
+            yum -y update
+            wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat/jenkins.repo
+            rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+            yum install jenkins -y
+            yum install java -y
+            systemctl enable jenkins
+            systemctl start jenkins
+
+       
+              
+            
+  S3:
+    Type: "AWS::S3::Bucket"
+
